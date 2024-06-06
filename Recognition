@@ -1,1 +1,3 @@
+First, use opencv to detect face.
 
+Then, use the analyze function from deepface to analyse facial attributes.
