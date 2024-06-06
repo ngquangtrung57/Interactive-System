@@ -4,3 +4,4 @@ pyaudio
 python-dotenv
 RealtimeTTS
 RealtimeSTT
+streamlit
