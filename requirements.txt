@@ -1,3 +1,6 @@
-opencv-python
-deepface
-tf_keras
+langchain
+openai
+pyaudio
+python-dotenv
+RealtimeTTS
+RealtimeSTT
