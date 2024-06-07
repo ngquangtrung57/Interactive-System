@@ -1,11 +1,27 @@
 import cv2
 from deepface import DeepFace
+import sqlite3
+
+# Create a SQLite connection and cursor
+conn = sqlite3.connect('people_data.db')
+cursor = conn.cursor()
+
+# Create a table to store the data without the Count column
+cursor.execute('''CREATE TABLE IF NOT EXISTS PeopleData
+            (PersonID INTEGER PRIMARY KEY,
+             Age TEXT,
+             Gender TEXT,
+             Race TEXT,
+             Emotion TEXT)''')
 
 # Load face cascade classifier
 face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
 # Start capturing video
 cap = cv2.VideoCapture(0)
+
+# Initialize dictionary to store face identities
+face_identities = {}
 
 while True:
     # Capture frame-by-frame
@@ -24,27 +40,41 @@ while True:
         # Extract the face ROI (Region of Interest)
         face_roi = rgb_frame[y:y + h, x:x + w]
 
-        # Perform face analysis on the face ROI
-        result = DeepFace.analyze(face_roi, actions=['age', 'gender', 'race', 'emotion'], enforce_detection=False)
+        # Perform face analysis only if face is new
+        if (x, y, w, h) not in face_identities:
+            # Perform face analysis on the face ROI
+            result = DeepFace.analyze(face_roi, actions=['age', 'gender', 'race', 'emotion'], enforce_detection=False)
 
-        # Extract attributes
-        age = str(result[0]['age'])
-        gender = str(result[0]['gender'])
-        race = str(result[0]['dominant_race'])
-        emotion = result[0]['dominant_emotion']
+            # Extract attributes
+            age = str(result[0]['age'])
+            gender = str(result[0]['dominant_gender'])
+            race = str(result[0]['dominant_race'])
+            emotion = result[0]['dominant_emotion']
+
+            # Store face identity
+            face_identities[(x, y, w, h)] = {'age': age, 'gender': gender, 'race': race, 'emotion': emotion}
+
+            # Insert data into SQLite database
+            cursor.execute("INSERT INTO PeopleData (Age, Gender, Race, Emotion) VALUES (?, ?, ?, ?)", (age, gender, race, emotion))
+            conn.commit()
 
         # Draw rectangle around face and label with predicted attributes
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-        label = f"Age: {age}\nGender: {gender}\nRace: {race}\nEmotion: {emotion}"
-        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 2)
+        cv2.putText(frame, face_identities[(x, y, w, h)]['emotion'], (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 2)
 
     # Display the resulting frame
     cv2.imshow('Real-time Emotion Detection', frame)
 
     # Press 'q' to exit
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    key = cv2.waitKey(1)
+    if key == ord('q'): 
         break
 
-# Release the capture and close all windows
+# Release the capture
 cap.release()
+
+# Close SQLite connection
+conn.close()
+
+# Close all OpenCV windows
 cv2.destroyAllWindows()
