@@ -7,6 +7,7 @@ from typing import List, Tuple, Optional
 import numpy as np
 import pandas as pd
 import cv2
+import sqlite3
 
 # project dependencies
 from deepface import DeepFace
@@ -494,13 +495,37 @@ def perform_demography_analysis(
             detector_backend="skip",
             enforce_detection=False,
             silent=True,
-        )
-
+        )      
+        
         if len(demographies) == 0:
             continue
 
         # safe to access 1st index because detector backend is skip
         demography = demographies[0]
+
+        age = demography['age']
+        dominant_gender = demography['dominant_gender']
+        dominant_emotion = demography['dominant_emotion']
+
+        # Create a SQLite connection and cursor
+        conn = sqlite3.connect('people_data.db')
+        cursor = conn.cursor()
+
+        # Create a table to store the data without the Count column
+        cursor.execute('''CREATE TABLE IF NOT EXISTS PeopleData
+            (PersonID INTEGER PRIMARY KEY,
+             Age TEXT,
+             Gender TEXT,
+             Emotion TEXT)''')
+
+        # Insert new record
+        cursor.execute('INSERT INTO PeopleData (Age, Gender, Emotion) VALUES (?, ?, ?)',
+                       (age, dominant_gender, dominant_emotion))
+        print("Inserted new person")
+
+        # Commit changes and close connection
+        conn.commit()
+        conn.close()
 
         img = overlay_emotion(img=img, emotion_probas=demography["emotion"], x=x, y=y, w=w, h=h)
         img = overlay_age_gender(
