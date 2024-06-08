@@ -1,0 +1,21 @@
+CREATE TABLE user_attributes {
+    user_id PRIMARY NOT NULL UNIQUE,
+    age NOT NULL INTEGER,
+    gender 'male' | 'female'
+    race NOT NULL CHAR,
+}
+
+CREATE TABLE user_login {
+    user_id NOT NULL UNIQUE, 
+    password NOT NULL 
+}
+
+CREATE TABLE image_path {
+    foreign key user_id, 
+    image_path
+}
+
+CREATE TABLE emotion {
+    foreign key user_id,
+    emotion TIMESTAMP, 
+}
