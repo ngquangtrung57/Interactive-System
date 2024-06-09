@@ -6,7 +6,7 @@ numpy==1.26.4
 uuid
 python-dotenv==1.0.1
 deepface==0.0.65
-tensorflow==2.8.0
+tensorflow
 langchain==0.2.1
 langchain-openai==0.1.8
 RealtimeTTS==0.4.0
