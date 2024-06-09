@@ -1,0 +1,203 @@
+import streamlit as st
+import sqlite3
+from langchain_helper import LangChainHelper
+import cv2
+import mediapipe as mp
+import numpy as np
+import uuid
+import tempfile
+import os
+from threading import Thread
+import time
+from deepface import DeepFace
+import tensorflow as tf
+
+# Initialize MediaPipe face detection and drawing utilities
+mp_face_detection = mp.solutions.face_detection
+mp_drawing = mp.solutions.drawing_utils
+
+# Function to save user image locally
+def save_user_image(image, user_id):
+    os.makedirs('user_images', exist_ok=True)
+    image_path = os.path.join('user_images', f'{user_id}.jpg')
+    cv2.imwrite(image_path, image)
+    return image_path
+
+# Function to perform facial recognition and attribute analysis
+def facial_recognition(helper, user_info, cursor):
+    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        st.error("Could not open webcam.")
+        return
+
+    face_detection = mp_face_detection.FaceDetection(model_selection=0, min_detection_confidence=0.5)
+
+    while st.session_state.get("conversation_started", False):
+        if not st.session_state.get("pause", False):
+            ret, frame = cap.read()
+            if not ret:
+                st.error("Failed to capture image from webcam.")
+                break
+
+            # Perform facial detection
+            img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            results = face_detection.process(img_rgb)
+
+            if results.detections:
+                for detection in results.detections:
+                    mp_drawing.draw_detection(frame, detection)
+
+                # Save image and perform facial analysis
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+                cv2.imwrite(temp_file.name, frame)
+
+                try:
+                    # Perform facial recognition and attribute detection using DeepFace
+                    analysis = DeepFace.analyze(temp_file.name, actions=['age', 'gender', 'emotion'], enforce_detection=False)
+                    user_id = str(uuid.uuid4())
+                    save_user_image(frame, user_id)
+                    gender = analysis['gender']
+                    age = analysis['age']
+                    emotion = analysis['dominant_emotion']
+
+                    user_info["user_id"] = user_id
+                    user_info["gender"] = gender
+                    user_info["age"] = age
+                    user_info["emotion"] = emotion
+
+                    # Save context for the LLM
+                    helper.memory.save_context({
+                        "input": f"My gender: {gender}, my age: {age}, my emotion right now: {emotion}",
+                        "output": "Hello, I will provide the answer proper with your gender, age, and emotion."
+                    })
+                except Exception as e:
+                    st.error(f"Error in DeepFace processing: {e}")
+
+        # Wait for 2 minutes before the next capture
+        time.sleep(120)
+
+    cap.release()
+
+# Function to capture user input from the microphone
+def capture_user_input(helper, cursor):
+    st.write("Speak now...")  # Display "Speak now" on the interface
+    try:
+        user_input = helper.capture_user_input()
+        if user_input:
+            st.session_state["conversation_history"].append(f"{st.session_state['user_info']['user_id']}: {user_input}")
+
+            # Update conversation display with user input
+            st.write("\n".join(st.session_state["conversation_history"]))
+
+            # Indicate the bot is generating a response
+            st.write("Getting response from LLM...")
+
+            # Generate response
+            response = helper.get_response(
+                user_id=st.session_state["user_info"]["user_id"],
+                gender=st.session_state["user_info"]["gender"],
+                age=st.session_state["user_info"]["age"],
+                emotion=st.session_state["user_info"]["emotion"],
+                cursor=cursor,
+                user_input=user_input
+            )
+            st.session_state["conversation_history"].append(f"AI: {response}")
+
+            # Update conversation display with AI response
+            st.write("\n".join(st.session_state["conversation_history"]))
+        else:
+            st.write("Could not capture your input. Please try again.")
+    except RuntimeError as e:
+        st.error(f"Error capturing or processing input: {e}")
+
+# Main function to run the Streamlit app
+def main():
+    st.title("Interactive Talkbot")
+
+    # Initialize the LangChainHelper
+    try:
+        helper = LangChainHelper()
+    except RuntimeError as e:
+        st.error(f"Error initializing LangChainHelper: {e}")
+        return
+
+    # Connect to SQLite database
+    conn = sqlite3.connect('chat_memory.db')
+    cursor = conn.cursor()
+    cursor.execute('''CREATE TABLE IF NOT EXISTS chat_memory (user_id TEXT PRIMARY KEY, conversation TEXT)''')
+    conn.commit()
+
+    # Ensure all required session state keys are initialized
+    if "start_webcam" not in st.session_state:
+        st.session_state["start_webcam"] = False
+    if "user_info" not in st.session_state:
+        st.session_state["user_info"] = {"user_id": None, "gender": "unknown", "age": "unknown", "emotion": "neutral"}
+    if "conversation_started" not in st.session_state:
+        st.session_state["conversation_started"] = False
+    if "pause" not in st.session_state:
+        st.session_state["pause"] = False
+    if "conversation_history" not in st.session_state:
+        st.session_state["conversation_history"] = []
+
+    # Start Conversation Button
+    if st.button("Start Conversation"):
+        st.session_state["start_webcam"] = True
+        st.session_state["conversation_started"] = True
+        st.session_state["pause"] = False
+        helper.clear_memory()
+
+        # Start a new thread for continuous facial recognition
+        facial_recognition_thread = Thread(target=facial_recognition, args=(helper, st.session_state["user_info"], cursor))
+        facial_recognition_thread.start()
+
+        greeting = "Hello, how can I help you today?"
+        st.session_state["conversation_history"].append(f"AI: {greeting}")
+        helper.play_audio_chunks(greeting)
+        st.write("\n".join(st.session_state["conversation_history"]))
+
+    # Webcam Feed Display
+    if st.session_state["start_webcam"]:
+        FRAME_WINDOW = st.image([])
+        cap = cv2.VideoCapture(0)
+        while st.session_state["conversation_started"]:
+            ret, frame = cap.read()
+            if not ret:
+                st.error("Failed to capture image from webcam.")
+                break
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            FRAME_WINDOW.image(frame)
+
+    # Pause and Resume Buttons
+    if st.session_state["conversation_started"]:
+        if not st.session_state["pause"]:
+            if st.button("Pause"):
+                st.session_state["pause"] = True
+                helper.play_audio_chunks("Listening paused")
+                st.write("Listening paused.")
+        else:
+            if st.button("Resume"):
+                st.session_state["pause"] = False
+                helper.play_audio_chunks("Listening resumed")
+                st.write("Listening resumed.")
+
+            if st.button("End"):
+                st.session_state["conversation_started"] = False
+                st.session_state["pause"] = False
+                st.write("Conversation ended.")
+                helper.clear_memory()
+                conn.commit()
+
+    # Capture and process user input continuously
+    if st.session_state["conversation_started"] and not st.session_state["pause"]:
+        capture_user_input(helper, cursor)
+
+    # Close the database connection
+    conn.close()
+
+    # Rerun the Streamlit script to keep capturing input
+    st.rerun()
+
+if __name__ == "__main__":
+    import multiprocessing
+    multiprocessing.freeze_support()
+    main()
