@@ -9,8 +9,6 @@ from dotenv import load_dotenv
 from RealtimeTTS import OpenAIEngine, TextToAudioStream
 from RealtimeSTT import AudioToTextRecorder
 
-from prompts import SUMMARY_PROMPT
-
 # Load environment variables from a .env file
 load_dotenv()
 
@@ -37,7 +35,6 @@ class LangChainHelper:
             llm=self.summarize_llm,
             memory_key="history",
             max_token_limit=1200,
-            prompt=SUMMARY_PROMPT,
             input_variables=["history", "input"]
         )
 
