@@ -76,10 +76,10 @@ class LangChainHelper:
             logger.info(f"Invoking chain with input: {user_input}")
             
             # Save context about user information to memory
-            self.memory.save_context({
-                "input": f"My gender: {gender}, my age: {age}, my emotion right now: {emotion}",
-                "output": "Hello, I will provide the answer proper with your gender, age, and emotion."
-            })
+            self.memory.save_context(
+                {"input": f"My gender: {gender}, my age: {age}, my emotion right now: {emotion}"},
+                {"output": "Hello, I will provide the answer proper with your gender, age, and emotion."}
+            )
 
             # Generate response from the conversation chain
             response = self.chain.predict(input=user_input)
