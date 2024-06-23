@@ -17,7 +17,7 @@ Run the Streamlit application:
 streamlit run main.py
 ```
 
-### Or using Dockerr
+### Or using Docker
 #### Prerequisites
 
 Before setting up the bot, ensure you have the following installed:
