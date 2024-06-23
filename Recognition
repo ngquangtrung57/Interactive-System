@@ -1,5 +1,0 @@
-1. Use opencv to detect human face.
-
-2. Use 'analyze' function from 'deepface' to analyse facial attributes (age, gender, race, emotion).
-
-3. Store the facial attributes into a database.
