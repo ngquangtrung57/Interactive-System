@@ -1,4 +1,5 @@
 import os
+import warnings
 import streamlit as st
 import threading
 import queue
@@ -13,6 +14,8 @@ import time
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+warnings.filterwarnings("ignore")
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -164,49 +167,55 @@ def display_webcam():
 def conversation_thread():
     logging.info("Starting conversation thread")
 
+    # User ID input
     user_id = st.text_input("Enter your user ID", "test_user")
 
+    # Conversation display
     conversation_history = st.empty()
     user_info_text = st.empty()
     response_status_text = st.empty()
 
     if "conversation_started" not in st.session_state:
         st.session_state["conversation_started"] = False
-        st.session_state["pause"] = False
         st.session_state["generating_response"] = False  
         st.session_state["conversation_history"] = []
-
+        st.session_state["last_response"] = None  
+        
+    # Start button
     if not st.session_state["conversation_started"] and st.button("Start"):
         logging.info("Starting conversation")
         st.session_state["conversation_started"] = True
-        st.session_state["pause"] = False
-        st.session_state["generating_response"] = False 
+        st.session_state["generating_response"] = False  
         st.session_state["conversation_history"] = []
+        st.session_state["last_response"] = None 
         helper.clear_memory()
         
+        # Initial greeting
         greeting = "Hello, how can I help you today?"
         st.session_state["conversation_history"].append(f"🤖 AI: {greeting}")
         conversation_history.markdown("\n".join(st.session_state["conversation_history"]))
         helper.play_audio_chunks(greeting)
 
-        # End button
-        if st.button("End"):
-            logging.info("Ending conversation")
-            st.session_state["conversation_started"] = False
-            st.session_state["pause"] = False
-            st.write("Conversation ended.")
-            helper.clear_memory()
-            conn.commit()
-            st.experimental_rerun() 
+    # End button
+    if st.session_state["conversation_started"] and st.button("End"):
+        logging.info("Ending conversation")
+        st.session_state["conversation_started"] = False
+        st.write("Conversation ended.")
+        helper.clear_memory()
+        conn.commit()
+        st.experimental_rerun() 
+
+    # Replay last response button
+    if st.session_state["last_response"] and st.button("Replay last response"):  
+        helper.play_audio_chunks(st.session_state["last_response"])
 
     # Capture and process user input
-    while st.session_state["conversation_started"] and not st.session_state["pause"]:
+    while st.session_state["conversation_started"] and not st.session_state["generating_response"]:
         user_input = helper.capture_user_input()
         if user_input and not st.session_state["generating_response"]:
             logging.info(f"Captured user input: {user_input}")
             st.session_state["conversation_history"].append(f"{user_id}: {user_input}")
 
-            # Update conversation display with user input
             conversation_history.markdown("\n".join(st.session_state["conversation_history"]))
 
             # Indicate the bot is generating a response
@@ -231,10 +240,12 @@ def conversation_thread():
 
             # Update conversation display with AI response
             conversation_history.markdown("\n".join(st.session_state["conversation_history"]))
-            response_status_text.text("")  
-            st.session_state["generating_response"] = False  
+            response_status_text.text("")  # Clear the response status text
+            st.session_state["last_response"] = response  # Store the last response
+            st.session_state["generating_response"] = False 
         else:
             st.write("Could not capture your input. Please try again.")
+
 
 st.title("Interactive Face Recognition and Conversation System")
 attributes_text = st.empty()
