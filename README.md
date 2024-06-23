@@ -7,6 +7,12 @@ git clone https://github.com/ngquangtrung57/Interactive-System
 cd Interactive_System
 ```
 
+Create a .env file in the root directory and add your environment variables. The .env file should include:
+
+```bash
+OPENAI_API_KEY=your_openai_api_key
+```
+
 ## Running without Docker
 Install the required Python packages:
 ```bash
