@@ -1,15 +1,10 @@
 streamlit==1.35.0
 opencv-python-headless==4.10.0.82
-mediapipe==0.10.14
+face_recognition==1.3.0
 numpy==1.26.4
-uuid
-python-dotenv==1.0.1
 deepface==0.0.65
-tensorflow==2.8.0
+sqlite3 # Included with Python, so no need to specify
 langchain==0.2.1
 langchain-openai==0.1.8
-RealtimeTTS
-RealtimeSTT
-face_recognition==1.3.0
-Pillow==10.3.0
-
+realtimestt==0.1.15
+realtimetts==0.4.0
