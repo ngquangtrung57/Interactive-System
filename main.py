@@ -26,6 +26,10 @@ known_face_encodings = []
 known_face_names = []
 known_faces_dir = "user"
 
+# Check if the user folder exists
+if not os.path.exists(known_faces_dir):
+    raise FileNotFoundError(f"The directory '{known_faces_dir}' does not exist. Please create it and add known face images.")
+
 # Load known faces from the folder
 def load_known_faces():
     logging.info("Loading known faces")
@@ -167,10 +171,35 @@ def display_webcam():
 def conversation_thread():
     logging.info("Starting conversation thread")
 
-    # User ID input
     user_id = st.text_input("Enter your user ID", "test_user")
 
-    # Conversation display
+    # Voice selection
+    voice_options = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+    selected_voice = st.selectbox("Select Voice", options=voice_options)
+
+    # Test buttons for each voice
+    if st.button("Test Alloy Voice"):
+        helper.set_voice("alloy")
+        helper.play_audio_chunks("Hello, my name is Alloy. I am an AI Assistant. How can I help you today?")
+    if st.button("Test Echo Voice"):
+        helper.set_voice("echo")
+        helper.play_audio_chunks("Hello, my name is Echo. I am an AI Assistant. How can I help you today?")
+    if st.button("Test Fable Voice"):
+        helper.set_voice("fable")
+        helper.play_audio_chunks("Hello, my name is Fable. I am an AI Assistant. How can I help you today?")
+    if st.button("Test Onyx Voice"):
+        helper.set_voice("onyx")
+        helper.play_audio_chunks("Hello, my name is Onyx. I am an AI Assistant. How can I help you today?")
+    if st.button("Test Nova Voice"):
+        helper.set_voice("nova")
+        helper.play_audio_chunks("Hello, my name is Nova. I am an AI Assistant. How can I help you today?")
+    if st.button("Test Shimmer Voice"):
+        helper.set_voice("shimmer")
+        helper.play_audio_chunks("Hello, my name is Shimmer. I am an AI Assistant. How can I help you today?")
+    
+
+    helper.set_voice(selected_voice)
+
     conversation_history = st.empty()
     user_info_text = st.empty()
     response_status_text = st.empty()
@@ -179,7 +208,7 @@ def conversation_thread():
         st.session_state["conversation_started"] = False
         st.session_state["generating_response"] = False  
         st.session_state["conversation_history"] = []
-        st.session_state["last_response"] = None  
+        st.session_state["last_response"] = None 
         
     # Start button
     if not st.session_state["conversation_started"] and st.button("Start"):
@@ -191,7 +220,7 @@ def conversation_thread():
         helper.clear_memory()
         
         # Initial greeting
-        greeting = "Hello, how can I help you today?"
+        greeting = f"Hello, my name is {selected_voice.capitalize()}. I am an AI Assistant. How can I help you today?"
         st.session_state["conversation_history"].append(f"🤖 AI: {greeting}")
         conversation_history.markdown("\n".join(st.session_state["conversation_history"]))
         helper.play_audio_chunks(greeting)
@@ -246,7 +275,6 @@ def conversation_thread():
         else:
             st.write("Could not capture your input. Please try again.")
 
-
 st.title("Interactive Face Recognition and Conversation System")
 attributes_text = st.empty()
 
@@ -271,3 +299,4 @@ if __name__ == "__main__":
     threading.Thread(target=display_webcam, daemon=True).start()
 
     conversation_thread()
+
