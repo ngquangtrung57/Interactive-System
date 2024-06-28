@@ -254,7 +254,6 @@ def conversation_thread():
             # Fetch attributes from the queue
             if not attributes_queue.empty():
                 attributes_info = attributes_queue.get()
-                user_info_text.text("\n".join(attributes_info))
                 name, gender, age, emotion = attributes_info[0].split(',')[0].split(': ')[1], attributes_info[0].split(',')[1].split(': ')[1], int(attributes_info[0].split(',')[2].split(': ')[1]), attributes_info[0].split(',')[3].split(': ')[1]
             else:
                 # Default mock data if no attributes detected
@@ -283,7 +282,6 @@ def update_ui():
     while True:
         if not attributes_queue.empty():
             attributes_info = attributes_queue.get()
-            attributes_text.text("\n".join(attributes_info))
             st.rerun()
 
 if __name__ == "__main__":
